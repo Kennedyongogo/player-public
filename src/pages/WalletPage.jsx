@@ -456,8 +456,6 @@ export default function WalletPage() {
                         value={depositAmount}
                         onChange={(e) => setDepositAmount(e.target.value)}
                         inputProps={{ min: 10, step: 1 }}
-                        helperText={`Min KSh 10 · STK sent to ${user?.phone || "your phone"}`}
-                        FormHelperTextProps={{ sx: { mx: 0 } }}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
