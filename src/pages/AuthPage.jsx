@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Box,
@@ -22,19 +23,10 @@ import {
   EmojiEvents,
   Bolt,
   Groups,
-  Logout,
-  AccountBalanceWallet,
   Share,
-  CheckCircle,
 } from "@mui/icons-material";
-import {
-  login,
-  register,
-  saveSession,
-  clearSession,
-  getStoredUser,
-  getMe,
-} from "../api";
+import { login, register } from "../api";
+import { useAuth } from "../context/AuthContext";
 
 const FEATURES = [
   { icon: Bolt, text: "60-second blitz", sub: "5 questions, one shot" },
@@ -203,121 +195,9 @@ function PoolCards() {
   );
 }
 
-function WelcomeScreen({ user, onLogout }) {
-  const balance = parseFloat(user.walletBalance || 0).toFixed(2);
-  return (
-    <Box sx={pageSx}>
-      <AuthBackground />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        style={{ width: "100%", maxWidth: 440, padding: "16px", zIndex: 1 }}
-      >
-        <Box sx={cardSx}>
-          <Box sx={{ position: "relative", mb: 3 }}>
-            <Box
-              sx={{
-                position: "absolute",
-                inset: -4,
-                borderRadius: "20px",
-                background: "linear-gradient(135deg, #F5C518, #10F0A0, #7C3AED)",
-                opacity: 0.35,
-                filter: "blur(12px)",
-              }}
-            />
-            <Box
-              sx={{
-                position: "relative",
-                p: 3,
-                borderRadius: "18px",
-                background: "linear-gradient(135deg, rgba(245,197,24,0.12) 0%, rgba(16,240,160,0.08) 100%)",
-                border: "1px solid rgba(245,197,24,0.25)",
-                textAlign: "center",
-              }}
-            >
-              <Box sx={logoSx}>CQ</Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, mt: 2, mb: 0.5 }}>
-                Karibu, {user.nickname}! 🎉
-              </Typography>
-              <Typography color="text.secondary" sx={{ fontSize: "0.9rem" }}>
-                Your account is ready. The arena opens soon.
-              </Typography>
-            </Box>
-          </Box>
-
-          <Stack spacing={1.5} sx={{ mb: 3 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                p: 2,
-                borderRadius: "14px",
-                bgcolor: "rgba(245,197,24,0.08)",
-                border: "1px solid rgba(245,197,24,0.2)",
-              }}
-            >
-              <Box
-                sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "12px",
-                  bgcolor: "rgba(245,197,24,0.15)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <AccountBalanceWallet sx={{ color: "#F5C518" }} />
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", fontWeight: 600 }}>
-                  WALLET BALANCE
-                </Typography>
-                <Typography sx={{ fontWeight: 800, fontSize: "1.35rem", color: "#F5C518" }}>
-                  KSh {balance}
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                px: 2,
-                py: 1.5,
-                borderRadius: "12px",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <CheckCircle sx={{ color: "#10F0A0", fontSize: 20 }} />
-              <Typography sx={{ fontSize: "0.85rem", color: "text.secondary" }}>{user.phone}</Typography>
-            </Box>
-          </Stack>
-
-          <Button
-            fullWidth
-            variant="outlined"
-            startIcon={<Logout />}
-            onClick={onLogout}
-            sx={{
-              py: 1.5,
-              borderColor: "rgba(255,255,255,0.12)",
-              color: "text.secondary",
-              "&:hover": { borderColor: "rgba(255,255,255,0.25)", bgcolor: "rgba(255,255,255,0.04)" },
-            }}
-          >
-            Sign out
-          </Button>
-        </Box>
-      </motion.div>
-    </Box>
-  );
-}
-
 export default function AuthPage() {
+  const navigate = useNavigate();
+  const { loginUser } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
@@ -328,23 +208,11 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [user, setUser] = useState(getStoredUser());
-  const [profile, setProfile] = useState(null);
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  useEffect(() => {
-    if (!user) return;
-    getMe()
-      .then((res) => setProfile(res.data))
-      .catch(() => {
-        clearSession();
-        setUser(null);
-      });
-  }, [user]);
 
   const switchMode = (next) => {
     setMode(next);
@@ -364,9 +232,8 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const res = await login({ phone: normalized, password });
-      saveSession({ token: res.data.token, user: res.data.user });
-      setUser(res.data.user);
-      setProfile({ user: res.data.user });
+      loginUser({ token: res.data.token, user: res.data.user });
+      navigate("/wallet", { replace: true });
     } catch (err) {
       setError(err.message || "Login failed. Check your credentials.");
     } finally {
@@ -393,30 +260,14 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const res = await register({ phone: normalized, nickname: nickname.trim(), password });
-      saveSession({ token: res.data.token, user: res.data.user });
-      setUser(res.data.user);
-      setProfile({ user: res.data.user });
+      loginUser({ token: res.data.token, user: res.data.user });
+      navigate("/wallet", { replace: true });
     } catch (err) {
       setError(err.message || "Registration failed. Try a different phone number.");
     } finally {
       setLoading(false);
     }
   };
-
-  const handleLogout = () => {
-    clearSession();
-    setUser(null);
-    setProfile(null);
-    setPhone("");
-    setPassword("");
-    setNickname("");
-    setConfirmPassword("");
-    setMode("login");
-  };
-
-  if (user && profile?.user) {
-    return <WelcomeScreen user={profile.user} onLogout={handleLogout} />;
-  }
 
   const fieldProps = {
     fullWidth: true,

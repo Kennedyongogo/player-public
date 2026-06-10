@@ -45,8 +45,46 @@ export async function getMe() {
   return request("/api/users/me");
 }
 
+export async function getWalletBalance() {
+  return request("/api/wallet/balance");
+}
+
+export async function getWalletTransactions({ limit = 20, offset = 0 } = {}) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  return request(`/api/wallet/transactions?${params}`);
+}
+
+export async function initiateDeposit(amount) {
+  return request("/api/wallet/deposit", {
+    method: "POST",
+    body: JSON.stringify({ amount: parseFloat(amount) }),
+  });
+}
+
+export async function getDepositStatus(callbackId) {
+  return request(`/api/wallet/deposits/${callbackId}/status`);
+}
+
+export async function updateMyProfile({ nickname, phone, email }) {
+  return request("/api/users/me", {
+    method: "PATCH",
+    body: JSON.stringify({ nickname, phone, email }),
+  });
+}
+
+export async function changeMyPassword({ currentPassword, newPassword }) {
+  return request("/api/users/me/password", {
+    method: "PUT",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
 export function saveSession({ token, user }) {
   localStorage.setItem("chapaquiz_token", token);
+  localStorage.setItem("chapaquiz_user", JSON.stringify(user));
+}
+
+export function updateStoredUser(user) {
   localStorage.setItem("chapaquiz_user", JSON.stringify(user));
 }
 
