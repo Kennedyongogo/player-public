@@ -19,7 +19,6 @@ import {
   InputAdornment,
   IconButton,
   alpha,
-  Grid,
   LinearProgress,
   Collapse,
 } from "@mui/material";
@@ -294,8 +293,6 @@ export default function WalletPage() {
     }
   };
 
-  const quickAmounts = [50, 100, 200, 500];
-
   return (
     <PageShell>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
@@ -370,24 +367,29 @@ export default function WalletPage() {
           </Alert>
         </Collapse>
 
-        <Grid container spacing={{ xs: 2, sm: 2.5 }} sx={{ mb: 2.5 }}>
-          <Grid size={{ xs: 12, lg: 4, xl: 3 }}>
-            <Card
-              sx={{
-                ...cardSx,
-                height: "100%",
-                background: balancePulse
-                  ? "linear-gradient(145deg, rgba(16,240,160,0.22) 0%, rgba(245,197,24,0.12) 100%)"
-                  : "linear-gradient(145deg, rgba(245,197,24,0.16) 0%, rgba(16,240,160,0.08) 100%)",
-                border: balancePulse
-                  ? "1px solid rgba(16,240,160,0.45)"
-                  : "1px solid rgba(245,197,24,0.28)",
-                transition: "background 0.6s ease, border-color 0.6s ease, box-shadow 0.6s ease",
-                boxShadow: balancePulse ? "0 0 32px rgba(16,240,160,0.25)" : "none",
-              }}
-            >
-              <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
-                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+        <Stack spacing={{ xs: 2, sm: 2.5 }} sx={{ mb: 2.5 }}>
+          <Card
+            sx={{
+              ...cardSx,
+              width: "100%",
+              background: balancePulse
+                ? "linear-gradient(145deg, rgba(16,240,160,0.22) 0%, rgba(245,197,24,0.12) 100%)"
+                : "linear-gradient(145deg, rgba(245,197,24,0.16) 0%, rgba(16,240,160,0.08) 100%)",
+              border: balancePulse
+                ? "1px solid rgba(16,240,160,0.45)"
+                : "1px solid rgba(245,197,24,0.28)",
+              transition: "background 0.6s ease, border-color 0.6s ease, box-shadow 0.6s ease",
+              boxShadow: balancePulse ? "0 0 32px rgba(16,240,160,0.25)" : "none",
+            }}
+          >
+            <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={{ xs: 3, md: 4 }}
+                alignItems={{ md: "center" }}
+                justifyContent="space-between"
+              >
+                <Stack direction="row" alignItems="center" spacing={2}>
                   <Box
                     sx={{
                       width: 56,
@@ -397,6 +399,7 @@ export default function WalletPage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      flexShrink: 0,
                     }}
                   >
                     <AccountBalanceWallet sx={{ color: "#F5C518", fontSize: 30 }} />
@@ -418,77 +421,60 @@ export default function WalletPage() {
                   </Box>
                 </Stack>
 
-                <Typography fontWeight={700} sx={{ mb: 1.5 }}>
-                  Deposit via M-Pesa
-                </Typography>
-                <Box component="form" onSubmit={handleDeposit}>
-                  <Stack spacing={1.5}>
-                    <TextField
-                      label="Amount"
-                      type="number"
-                      size="small"
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      inputProps={{ min: 10, step: 1 }}
-                      helperText={`Min KSh 10 · STK sent to ${user?.phone || "your phone"}`}
-                      FormHelperTextProps={{ sx: { mx: 0 } }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Typography color="text.secondary" fontWeight={600} fontSize="0.9rem">
-                              KSh
-                            </Typography>
-                          </InputAdornment>
-                        ),
-                      }}
-                      fullWidth
-                    />
-                    <Stack direction="row" flexWrap="wrap" gap={0.75}>
-                      {quickAmounts.map((amt) => (
-                        <Button
-                          key={amt}
-                          size="small"
-                          variant={depositAmount === String(amt) ? "contained" : "outlined"}
-                          onClick={() => setDepositAmount(String(amt))}
-                          sx={{
-                            minWidth: 56,
-                            ...(depositAmount === String(amt)
-                              ? { bgcolor: "#F5C518", color: "#050508", "&:hover": { bgcolor: "#FFE566" } }
-                              : { borderColor: "rgba(255,255,255,0.12)", color: "text.secondary" }),
-                          }}
-                        >
-                          {amt}
-                        </Button>
-                      ))}
+                <Box sx={{ width: { xs: "100%", md: 360 }, flexShrink: 0 }}>
+                  <Typography fontWeight={700} sx={{ mb: 1.5 }}>
+                    Deposit via M-Pesa
+                  </Typography>
+                  <Box component="form" onSubmit={handleDeposit}>
+                    <Stack spacing={1.5}>
+                      <TextField
+                        label="Amount"
+                        type="number"
+                        size="small"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        inputProps={{ min: 10, step: 1 }}
+                        helperText={`Min KSh 10 · STK sent to ${user?.phone || "your phone"}`}
+                        FormHelperTextProps={{ sx: { mx: 0 } }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Typography color="text.secondary" fontWeight={600} fontSize="0.9rem">
+                                KSh
+                              </Typography>
+                            </InputAdornment>
+                          ),
+                        }}
+                        fullWidth
+                      />
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        disabled={depositLoading || Boolean(pendingDeposit)}
+                        fullWidth
+                        startIcon={depositLoading ? <CircularProgress size={18} color="inherit" /> : <Add />}
+                        sx={{
+                          bgcolor: "#F5C518",
+                          color: "#050508",
+                          fontWeight: 800,
+                          py: 1.25,
+                          "&:hover": { bgcolor: "#FFE566" },
+                        }}
+                      >
+                        {depositLoading
+                          ? "Sending STK..."
+                          : pendingDeposit
+                            ? "Waiting for M-Pesa..."
+                            : "Deposit with M-Pesa"}
+                      </Button>
                     </Stack>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      disabled={depositLoading || Boolean(pendingDeposit)}
-                      fullWidth
-                      startIcon={depositLoading ? <CircularProgress size={18} color="inherit" /> : <Add />}
-                      sx={{
-                        bgcolor: "#F5C518",
-                        color: "#050508",
-                        fontWeight: 800,
-                        py: 1.25,
-                        "&:hover": { bgcolor: "#FFE566" },
-                      }}
-                    >
-                      {depositLoading
-                        ? "Sending STK..."
-                        : pendingDeposit
-                          ? "Waiting for M-Pesa..."
-                          : "Deposit with M-Pesa"}
-                    </Button>
-                  </Stack>
+                  </Box>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+              </Stack>
+            </CardContent>
+          </Card>
 
-          <Grid size={{ xs: 12, lg: 8, xl: 9 }}>
-            <Card sx={{ ...cardSx, height: "100%" }}>
+          <Card sx={{ ...cardSx, width: "100%" }}>
               <CardContent sx={{ p: { xs: 2, sm: 2.5 }, pb: "0 !important" }}>
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                   <History sx={{ color: "#F5C518", fontSize: 22 }} />
@@ -557,9 +543,8 @@ export default function WalletPage() {
                   sx={{ borderTop: "1px solid rgba(255,255,255,0.06)", mt: 1 }}
                 />
               </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+          </Card>
+        </Stack>
       </motion.div>
     </PageShell>
   );
