@@ -65,6 +65,17 @@ export async function getDepositStatus(callbackId) {
   return request(`/api/wallet/deposits/${callbackId}/status`);
 }
 
+export async function initiateWithdrawal(amount) {
+  return request("/api/withdrawals", {
+    method: "POST",
+    body: JSON.stringify({ amount: parseFloat(amount) }),
+  });
+}
+
+export async function getMyWithdrawals() {
+  return request("/api/withdrawals/mine");
+}
+
 export async function updateMyProfile({ nickname, phone, email }) {
   return request("/api/users/me", {
     method: "PATCH",

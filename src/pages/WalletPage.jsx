@@ -21,6 +21,7 @@ import {
   alpha,
   LinearProgress,
   Collapse,
+  Divider,
 } from "@mui/material";
 import {
   AccountBalanceWallet,
@@ -29,15 +30,25 @@ import {
   History,
   PhoneAndroid,
   CheckCircle,
+  South,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import PageShell from "../components/PageShell";
 import ResponsiveTablePagination from "../components/ResponsiveTablePagination";
-import { getWalletBalance, getWalletTransactions, initiateDeposit, getDepositStatus } from "../api";
+import {
+  getWalletBalance,
+  getWalletTransactions,
+  initiateDeposit,
+  getDepositStatus,
+  initiateWithdrawal,
+  getMyWithdrawals,
+} from "../api";
 import { useAuth } from "../context/AuthContext";
 
 const POLL_INTERVAL_MS = 2500;
 const POLL_TIMEOUT_MS = 120000;
+const MIN_DEPOSIT = 10;
+const MIN_WITHDRAWAL = 50;
 
 const TYPE_META = {
   deposit: { label: "Deposit", color: "success" },
@@ -158,13 +169,22 @@ export default function WalletPage() {
   const [txLoading, setTxLoading] = useState(false);
   const [txRefreshing, setTxRefreshing] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [depositLoading, setDepositLoading] = useState(false);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [pendingDeposit, setPendingDeposit] = useState(null);
+  const [pendingWithdrawal, setPendingWithdrawal] = useState(null);
   const [balancePulse, setBalancePulse] = useState(false);
   const pollTimeoutRef = useRef(null);
+  const withdrawPollTimeoutRef = useRef(null);
   const hasLoadedOnce = useRef(false);
+
+  const pulseBalance = useCallback(() => {
+    setBalancePulse(true);
+    setTimeout(() => setBalancePulse(false), 2000);
+  }, []);
 
   const loadBalance = useCallback(async () => {
     const res = await getWalletBalance();
@@ -245,8 +265,7 @@ export default function WalletPage() {
         if (status === "success") {
           setPendingDeposit(null);
           setBalance(parseFloat(balance || 0));
-          setBalancePulse(true);
-          setTimeout(() => setBalancePulse(false), 2000);
+          pulseBalance();
           await refreshUser();
           await loadTransactions({ silent: true });
           const credited = parseFloat(amount || pendingDeposit.amount);
@@ -275,15 +294,65 @@ export default function WalletPage() {
       clearInterval(interval);
       if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
     };
-  }, [pendingDeposit?.callbackId, refreshUser, loadTransactions]);
+  }, [pendingDeposit?.callbackId, refreshUser, loadTransactions, pulseBalance]);
+
+  useEffect(() => {
+    if (!pendingWithdrawal?.id) return undefined;
+
+    const poll = async () => {
+      try {
+        const res = await getMyWithdrawals();
+        const list = res.data?.withdrawals || [];
+        const current = list.find((w) => w.id === pendingWithdrawal.id);
+        if (!current) return;
+
+        if (current.status === "processed") {
+          setPendingWithdrawal(null);
+          await loadBalance();
+          await loadTransactions({ silent: true });
+          pulseBalance();
+          const receipt = current.transactionReceipt;
+          setSuccess(
+            receipt
+              ? `KSh ${parseFloat(current.amount).toLocaleString("en-KE")} sent to M-Pesa. Receipt: ${receipt}`
+              : `KSh ${parseFloat(current.amount).toLocaleString("en-KE")} has been sent to your M-Pesa.`
+          );
+        } else if (current.status === "failed" || current.status === "rejected") {
+          setPendingWithdrawal(null);
+          await loadBalance();
+          await loadTransactions({ silent: true });
+          setError(
+            current.mpesaResultDescription ||
+              "Withdrawal failed — funds have been returned to your wallet."
+          );
+        }
+      } catch {
+        /* keep polling until timeout */
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, POLL_INTERVAL_MS);
+    withdrawPollTimeoutRef.current = setTimeout(() => {
+      setPendingWithdrawal(null);
+      setError(
+        "Withdrawal confirmation timed out. Tap refresh — funds may still be processing or returned to your wallet."
+      );
+    }, POLL_TIMEOUT_MS);
+
+    return () => {
+      clearInterval(interval);
+      if (withdrawPollTimeoutRef.current) clearTimeout(withdrawPollTimeoutRef.current);
+    };
+  }, [pendingWithdrawal?.id, loadBalance, loadTransactions, pulseBalance]);
 
   const handleDeposit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
     const parsed = parseFloat(depositAmount);
-    if (!parsed || parsed < 10) {
-      setError("Minimum deposit is KSh 10");
+    if (!parsed || parsed < MIN_DEPOSIT) {
+      setError(`Minimum deposit is KSh ${MIN_DEPOSIT}`);
       return;
     }
     setDepositLoading(true);
@@ -310,6 +379,54 @@ export default function WalletPage() {
       setDepositLoading(false);
     }
   };
+
+  const handleWithdraw = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    const parsed = parseFloat(withdrawAmount);
+    if (!parsed || parsed < MIN_WITHDRAWAL) {
+      setError(`Minimum withdrawal is KSh ${MIN_WITHDRAWAL}`);
+      return;
+    }
+    if (parsed > balance) {
+      setError("Insufficient wallet balance");
+      return;
+    }
+    setWithdrawLoading(true);
+    try {
+      const res = await initiateWithdrawal(parsed);
+      const withdrawal = res.data?.withdrawal;
+      setWithdrawAmount("");
+
+      if (withdrawal?.status === "processed") {
+        await loadBalance();
+        await loadTransactions({ silent: true });
+        pulseBalance();
+        const receipt = withdrawal.transactionReceipt;
+        setSuccess(
+          res.message ||
+            (receipt
+              ? `KSh ${parsed.toLocaleString("en-KE")} sent to M-Pesa. Receipt: ${receipt}`
+              : `KSh ${parsed.toLocaleString("en-KE")} has been sent to your M-Pesa.`)
+        );
+      } else if (withdrawal?.status === "processing" || withdrawal?.status === "pending") {
+        setPendingWithdrawal({ id: withdrawal.id, amount: parsed });
+      } else if (withdrawal?.status === "failed") {
+        await loadBalance();
+        await loadTransactions({ silent: true });
+        setError(res.message || "Withdrawal failed — funds returned to your wallet.");
+      } else {
+        setSuccess(res.message || "Withdrawal request submitted.");
+      }
+    } catch (err) {
+      setError(err.message || "Withdrawal failed");
+    } finally {
+      setWithdrawLoading(false);
+    }
+  };
+
+  const walletBusy = Boolean(pendingDeposit || pendingWithdrawal);
 
   return (
     <PageShell>
@@ -371,9 +488,7 @@ export default function WalletPage() {
             }}
           >
             <Stack spacing={1}>
-              <Typography fontWeight={700}>
-                Complete payment on your phone
-              </Typography>
+              <Typography fontWeight={700}>Complete payment on your phone</Typography>
               <Typography variant="body2" color="text.secondary">
                 Waiting for M-Pesa to confirm KSh {pendingDeposit?.amount?.toLocaleString("en-KE")}…
                 Your wallet will update automatically.
@@ -383,6 +498,34 @@ export default function WalletPage() {
                   borderRadius: 1,
                   bgcolor: "rgba(255,255,255,0.08)",
                   "& .MuiLinearProgress-bar": { bgcolor: "#F5C518" },
+                }}
+              />
+            </Stack>
+          </Alert>
+        </Collapse>
+
+        <Collapse in={Boolean(pendingWithdrawal)}>
+          <Alert
+            severity="info"
+            icon={<South />}
+            sx={{
+              mb: 2,
+              border: "1px solid rgba(16,240,160,0.35)",
+              bgcolor: "rgba(16,240,160,0.08)",
+              "& .MuiAlert-message": { width: "100%" },
+            }}
+          >
+            <Stack spacing={1}>
+              <Typography fontWeight={700}>Sending to M-Pesa</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Processing withdrawal of KSh {pendingWithdrawal?.amount?.toLocaleString("en-KE")}…
+                You will be notified when it completes.
+              </Typography>
+              <LinearProgress
+                sx={{
+                  borderRadius: 1,
+                  bgcolor: "rgba(255,255,255,0.08)",
+                  "& .MuiLinearProgress-bar": { bgcolor: "#10F0A0" },
                 }}
               />
             </Stack>
@@ -405,45 +548,48 @@ export default function WalletPage() {
             }}
           >
             <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
-              <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={{ xs: 3, md: 4 }}
-                alignItems={{ md: "center" }}
-                justifyContent="space-between"
-              >
-                <Stack direction="row" alignItems="center" spacing={2}>
-                  <Box
+              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2.5 }}>
+                <Box
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "16px",
+                    bgcolor: "rgba(245,197,24,0.18)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <AccountBalanceWallet sx={{ color: "#F5C518", fontSize: 30 }} />
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700} letterSpacing="0.08em">
+                    AVAILABLE BALANCE
+                  </Typography>
+                  <Typography
                     sx={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: "16px",
-                      bgcolor: "rgba(245,197,24,0.18)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
+                      fontWeight: 800,
+                      fontSize: { xs: "2rem", sm: "2.35rem" },
+                      color: "#F5C518",
+                      lineHeight: 1.1,
                     }}
                   >
-                    <AccountBalanceWallet sx={{ color: "#F5C518", fontSize: 30 }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={700} letterSpacing="0.08em">
-                      AVAILABLE BALANCE
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontWeight: 800,
-                        fontSize: { xs: "2rem", sm: "2.35rem" },
-                        color: "#F5C518",
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {loading ? "..." : formatMoney(balance)}
-                    </Typography>
-                  </Box>
-                </Stack>
+                    {loading ? "..." : formatMoney(balance)}
+                  </Typography>
+                </Box>
+              </Stack>
 
-                <Box sx={{ width: { xs: "100%", md: 360 }, flexShrink: 0 }}>
+              <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", mb: 2.5 }} />
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gap: { xs: 2.5, md: 3 },
+                }}
+              >
+                <Box>
                   <Typography fontWeight={700} sx={{ mb: 1.5 }}>
                     Deposit via M-Pesa
                   </Typography>
@@ -455,7 +601,8 @@ export default function WalletPage() {
                         size="small"
                         value={depositAmount}
                         onChange={(e) => setDepositAmount(e.target.value)}
-                        inputProps={{ min: 10, step: 1 }}
+                        inputProps={{ min: MIN_DEPOSIT, step: 1 }}
+                        disabled={walletBusy}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -470,7 +617,7 @@ export default function WalletPage() {
                       <Button
                         type="submit"
                         variant="contained"
-                        disabled={depositLoading || Boolean(pendingDeposit)}
+                        disabled={depositLoading || walletBusy}
                         fullWidth
                         startIcon={depositLoading ? <CircularProgress size={18} color="inherit" /> : <Add />}
                         sx={{
@@ -490,7 +637,64 @@ export default function WalletPage() {
                     </Stack>
                   </Box>
                 </Box>
-              </Stack>
+
+                <Box>
+                  <Typography fontWeight={700} sx={{ mb: 1.5 }}>
+                    Withdraw to M-Pesa
+                  </Typography>
+                  <Box component="form" onSubmit={handleWithdraw}>
+                    <Stack spacing={1.5}>
+                      <TextField
+                        label="Amount"
+                        type="number"
+                        size="small"
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        inputProps={{ min: MIN_WITHDRAWAL, step: 1, max: balance }}
+                        disabled={walletBusy || balance < MIN_WITHDRAWAL}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Typography color="text.secondary" fontWeight={600} fontSize="0.9rem">
+                                KSh
+                              </Typography>
+                            </InputAdornment>
+                          ),
+                        }}
+                        fullWidth
+                      />
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        disabled={withdrawLoading || walletBusy || balance < MIN_WITHDRAWAL}
+                        fullWidth
+                        startIcon={
+                          withdrawLoading ? <CircularProgress size={18} color="inherit" /> : <South />
+                        }
+                        sx={{
+                          bgcolor: "#10F0A0",
+                          color: "#050508",
+                          fontWeight: 800,
+                          py: 1.25,
+                          "&:hover": { bgcolor: "#3DFFB8" },
+                          "&:disabled": {
+                            bgcolor: "rgba(16,240,160,0.25)",
+                            color: "rgba(255,255,255,0.35)",
+                          },
+                        }}
+                      >
+                        {withdrawLoading
+                          ? "Processing..."
+                          : pendingWithdrawal
+                            ? "Sending to M-Pesa..."
+                            : balance < MIN_WITHDRAWAL
+                              ? `Min KSh ${MIN_WITHDRAWAL} to withdraw`
+                              : "Withdraw to M-Pesa"}
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
 
