@@ -25,8 +25,15 @@ import {
   Groups,
   Share,
 } from "@mui/icons-material";
+import Swal from "sweetalert2";
 import { login, register } from "../api";
 import { useAuth } from "../context/AuthContext";
+
+const swalTheme = {
+  confirmButtonColor: "#F5C518",
+  background: "#0E0E16",
+  color: "#FAFAFA",
+};
 
 const FEATURES = [
   { icon: Bolt, text: "60-second blitz", sub: "5 questions, one shot" },
@@ -233,6 +240,18 @@ export default function AuthPage() {
     try {
       const res = await login({ phone: normalized, password });
       loginUser({ token: res.data.token, user: res.data.user });
+
+      await Swal.fire({
+        icon: "success",
+        title: "Welcome back!",
+        text: `Good luck, ${res.data.user.nickname}!`,
+        timer: 1800,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        ...swalTheme,
+      });
+
       navigate("/wallet", { replace: true });
     } catch (err) {
       setError(err.message || "Login failed. Check your credentials.");

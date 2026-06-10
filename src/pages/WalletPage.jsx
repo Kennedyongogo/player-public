@@ -156,6 +156,7 @@ export default function WalletPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(false);
+  const [txRefreshing, setTxRefreshing] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositLoading, setDepositLoading] = useState(false);
   const [error, setError] = useState("");
@@ -163,6 +164,7 @@ export default function WalletPage() {
   const [pendingDeposit, setPendingDeposit] = useState(null);
   const [balancePulse, setBalancePulse] = useState(false);
   const pollTimeoutRef = useRef(null);
+  const hasLoadedOnce = useRef(false);
 
   const loadBalance = useCallback(async () => {
     const res = await getWalletBalance();
@@ -170,31 +172,47 @@ export default function WalletPage() {
     await refreshUser();
   }, [refreshUser]);
 
-  const loadTransactions = useCallback(async () => {
-    setTxLoading(true);
-    try {
-      const res = await getWalletTransactions({
-        limit: rowsPerPage,
-        offset: page * rowsPerPage,
-      });
-      setTransactions(res.data.transactions || []);
-      setTotal(res.data.total || 0);
-    } finally {
-      setTxLoading(false);
-    }
-  }, [page, rowsPerPage]);
+  const loadTransactions = useCallback(
+    async ({ silent = false } = {}) => {
+      const background = silent || hasLoadedOnce.current;
+      if (background) {
+        setTxRefreshing(true);
+      } else {
+        setTxLoading(true);
+      }
+      try {
+        const res = await getWalletTransactions({
+          limit: rowsPerPage,
+          offset: page * rowsPerPage,
+        });
+        setTransactions(res.data.transactions || []);
+        setTotal(res.data.total || 0);
+        hasLoadedOnce.current = true;
+      } finally {
+        setTxLoading(false);
+        setTxRefreshing(false);
+      }
+    },
+    [page, rowsPerPage]
+  );
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      await Promise.all([loadBalance(), loadTransactions()]);
-    } catch (err) {
-      setError(err.message || "Failed to load wallet");
-    } finally {
-      setLoading(false);
-    }
-  }, [loadBalance, loadTransactions]);
+  const loadAll = useCallback(
+    async ({ silent = false } = {}) => {
+      const background = silent || hasLoadedOnce.current;
+      if (!background) {
+        setLoading(true);
+        setError("");
+      }
+      try {
+        await Promise.all([loadBalance(), loadTransactions({ silent: background || silent })]);
+      } catch (err) {
+        setError(err.message || "Failed to load wallet");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadBalance, loadTransactions]
+  );
 
   useEffect(() => {
     loadAll();
@@ -202,11 +220,11 @@ export default function WalletPage() {
 
   const refreshSilently = useCallback(async () => {
     try {
-      await Promise.all([loadBalance(), loadTransactions()]);
+      await loadAll({ silent: true });
     } catch {
       /* ignore background refresh errors */
     }
-  }, [loadBalance, loadTransactions]);
+  }, [loadAll]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -230,7 +248,7 @@ export default function WalletPage() {
           setBalancePulse(true);
           setTimeout(() => setBalancePulse(false), 2000);
           await refreshUser();
-          await loadTransactions();
+          await loadTransactions({ silent: true });
           const credited = parseFloat(amount || pendingDeposit.amount);
           setSuccess(
             mpesaReceiptNumber
@@ -312,8 +330,8 @@ export default function WalletPage() {
             </Typography>
           </Box>
           <IconButton
-            onClick={loadAll}
-            disabled={loading}
+            onClick={() => loadAll({ silent: true })}
+            disabled={loading || txRefreshing}
             aria-label="Refresh wallet"
             sx={{
               border: "1px solid rgba(255,255,255,0.08)",
@@ -322,7 +340,11 @@ export default function WalletPage() {
               "&:hover": { bgcolor: "rgba(245,197,24,0.08)", borderColor: "rgba(245,197,24,0.3)" },
             }}
           >
-            {loading ? <CircularProgress size={20} sx={{ color: "#F5C518" }} /> : <Refresh />}
+            {loading || txRefreshing ? (
+              <CircularProgress size={20} sx={{ color: "#F5C518" }} />
+            ) : (
+              <Refresh />
+            )}
           </IconButton>
         </Stack>
 
@@ -474,8 +496,22 @@ export default function WalletPage() {
             </CardContent>
           </Card>
 
-          <Card sx={{ ...cardSx, width: "100%" }}>
-              <CardContent sx={{ p: { xs: 2, sm: 2.5 }, pb: "0 !important" }}>
+          <Card sx={{ ...cardSx, width: "100%", position: "relative" }}>
+            {txRefreshing && (
+              <LinearProgress
+                sx={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  borderRadius: "12px 12px 0 0",
+                  height: 2,
+                  zIndex: 1,
+                  "& .MuiLinearProgress-bar": { bgcolor: "#F5C518" },
+                }}
+              />
+            )}
+            <CardContent sx={{ p: { xs: 2, sm: 2.5 }, pb: "0 !important" }}>
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                   <History sx={{ color: "#F5C518", fontSize: 22 }} />
                   <Typography fontWeight={700}>Recent activity</Typography>
@@ -485,7 +521,7 @@ export default function WalletPage() {
                 </Typography>
 
                 <Stack spacing={1.25} sx={{ display: { xs: "flex", md: "none" } }}>
-                  {txLoading ? (
+                  {txLoading && transactions.length === 0 ? (
                     <Box sx={{ py: 4, textAlign: "center" }}>
                       <CircularProgress size={24} sx={{ color: "#F5C518" }} />
                     </Box>
@@ -510,7 +546,7 @@ export default function WalletPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {txLoading ? (
+                      {txLoading && transactions.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                             <CircularProgress size={24} sx={{ color: "#F5C518" }} />
