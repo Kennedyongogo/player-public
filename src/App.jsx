@@ -6,6 +6,11 @@ import AuthPage from "./pages/AuthPage";
 import AppLayout from "./components/AppLayout";
 import WalletPage from "./pages/WalletPage";
 import SettingsPage from "./pages/SettingsPage";
+import PlayPage from "./pages/PlayPage";
+import MatchPage from "./pages/MatchPage";
+import JoinInviteGate from "./pages/JoinInviteGate";
+import InstallPrompt from "./components/InstallPrompt";
+import { peekPendingInvite } from "./utils/invite";
 
 function BootScreen() {
   return (
@@ -18,7 +23,11 @@ function BootScreen() {
 function LoginRoute() {
   const { isAuthenticated, booting } = useAuth();
   if (booting) return <BootScreen />;
-  if (isAuthenticated) return <Navigate to="/wallet" replace />;
+  if (isAuthenticated) {
+    const pending = peekPendingInvite();
+    if (pending) return <Navigate to={`/join/${pending}`} replace />;
+    return <Navigate to="/wallet" replace />;
+  }
   return <AuthPage />;
 }
 
@@ -34,11 +43,15 @@ export default function App() {
       <CssBaseline />
       <AuthProvider>
         <BrowserRouter>
+          <InstallPrompt />
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<LoginRoute />} />
+            <Route path="/join/:inviteCode" element={<JoinInviteGate />} />
             <Route element={<AppLayout />}>
               <Route path="/wallet" element={<WalletPage />} />
+              <Route path="/play" element={<PlayPage />} />
+              <Route path="/play/:matchId" element={<MatchPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<RootRedirect />} />

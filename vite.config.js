@@ -11,10 +11,10 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       devOptions: {
-        enabled: true, // so updates work during dev too
+        enabled: true,
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
       },
       includeAssets: ["favicon.ico"],
@@ -22,12 +22,24 @@ export default defineConfig({
         name: "ChapaQuiz",
         short_name: "ChapaQuiz",
         description: "Compete in fast quizzes and win cash prizes",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        orientation: "portrait",
         theme_color: "#07070F",
+        background_color: "#050508",
         icons: [
           {
             src: "favicon.ico",
-            sizes: "any",
+            sizes: "48x48 72x72 96x96 128x128 256x256",
             type: "image/x-icon",
+            purpose: "any",
+          },
+          {
+            src: "favicon.ico",
+            sizes: "512x512",
+            type: "image/x-icon",
+            purpose: "maskable",
           },
         ],
       },

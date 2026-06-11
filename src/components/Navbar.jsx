@@ -26,9 +26,9 @@ import {
 } from "@mui/icons-material";
 
 const NAV_ITEMS = [
+  { label: "Play", path: "/play", icon: SportsEsports },
   { label: "My Wallet", path: "/wallet", icon: AccountBalanceWallet },
   { label: "Profile & Settings", shortLabel: "Settings", path: "/settings", icon: Settings },
-  { label: "Play", path: "/play", icon: SportsEsports, disabled: true },
 ];
 
 export default function Navbar({ user, onLogout }) {
@@ -52,22 +52,6 @@ export default function Navbar({ user, onLogout }) {
       opacity: item.disabled ? 0.45 : 1,
       pointerEvents: item.disabled ? "none" : "auto",
     };
-
-    if (item.disabled) {
-      return (
-        <ListItemButton key={item.path} sx={common} disabled>
-          <ListItemIcon sx={{ minWidth: 40, color: "text.secondary" }}>
-            <item.icon />
-          </ListItemIcon>
-          <ListItemText
-            primary={item.label}
-            secondary="Coming soon"
-            primaryTypographyProps={{ fontWeight: 600, fontSize: "0.95rem" }}
-            secondaryTypographyProps={{ fontSize: "0.7rem" }}
-          />
-        </ListItemButton>
-      );
-    }
 
     return (
       <ListItemButton

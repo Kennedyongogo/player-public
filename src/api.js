@@ -1,3 +1,5 @@
+import { parseInviteCode } from "./utils/invite";
+
 const getBaseUrl = () => {
   const env = import.meta.env?.VITE_API_URL;
   return env ? String(env).replace(/\/$/, "") : "";
@@ -111,4 +113,48 @@ export function getStoredUser() {
   } catch {
     return null;
   }
+}
+
+export async function joinPublicMatch(entryFee) {
+  return request("/api/matches/public/join", {
+    method: "POST",
+    body: JSON.stringify({ entryFee: String(entryFee) }),
+  });
+}
+
+export async function createPrivateMatch(entryFee) {
+  return request("/api/matches/private/create", {
+    method: "POST",
+    body: JSON.stringify({ entryFee: String(entryFee) }),
+  });
+}
+
+export async function joinPrivateMatch(inviteLinkCode) {
+  return request("/api/matches/private/join", {
+    method: "POST",
+    body: JSON.stringify({ inviteLinkCode: parseInviteCode(inviteLinkCode) }),
+  });
+}
+
+export async function getMatch(matchId) {
+  return request(`/api/matches/${matchId}`);
+}
+
+export async function getMatchQuestions(matchId) {
+  return request(`/api/matches/${matchId}/questions`);
+}
+
+export async function submitMatchAnswer(matchId, { questionId, selectedOption }) {
+  return request(`/api/matches/${matchId}/answer`, {
+    method: "POST",
+    body: JSON.stringify({ questionId, selectedOption }),
+  });
+}
+
+export async function submitMatchEarly(matchId) {
+  return request(`/api/matches/${matchId}/submit`, { method: "POST" });
+}
+
+export async function leaveMatch(matchId) {
+  return request(`/api/matches/${matchId}/leave`, { method: "POST" });
 }

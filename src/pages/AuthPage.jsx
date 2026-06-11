@@ -28,6 +28,7 @@ import {
 import Swal from "sweetalert2";
 import { login, register } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { peekPendingInvite } from "../utils/invite";
 
 const swalTheme = {
   confirmButtonColor: "#F5C518",
@@ -252,7 +253,8 @@ export default function AuthPage() {
         ...swalTheme,
       });
 
-      navigate("/wallet", { replace: true });
+      const pending = peekPendingInvite();
+      navigate(pending ? `/join/${pending}` : "/wallet", { replace: true });
     } catch (err) {
       setError(err.message || "Login failed. Check your credentials.");
     } finally {
@@ -280,7 +282,8 @@ export default function AuthPage() {
     try {
       const res = await register({ phone: normalized, nickname: nickname.trim(), password });
       loginUser({ token: res.data.token, user: res.data.user });
-      navigate("/wallet", { replace: true });
+      const pending = peekPendingInvite();
+      navigate(pending ? `/join/${pending}` : "/wallet", { replace: true });
     } catch (err) {
       setError(err.message || "Registration failed. Try a different phone number.");
     } finally {

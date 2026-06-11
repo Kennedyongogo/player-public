@@ -58,6 +58,13 @@ const TYPE_META = {
   withdrawal: { label: "Withdrawal", color: "error" },
 };
 
+function getTxMeta(tx) {
+  if (tx.type === "deposit" && String(tx.description || "").includes("Withdrawal refund")) {
+    return { label: "Refund", color: "info" };
+  }
+  return TYPE_META[tx.type] || { label: tx.type, color: "default" };
+}
+
 const cardSx = {
   borderRadius: 3,
   bgcolor: "rgba(12,12,20,0.85)",
@@ -78,7 +85,7 @@ function isCredit(type) {
 }
 
 function TransactionRow({ tx }) {
-  const meta = TYPE_META[tx.type] || { label: tx.type, color: "default" };
+  const meta = getTxMeta(tx);
   const credit = isCredit(tx.type);
   return (
     <TableRow hover>
@@ -115,7 +122,7 @@ function TransactionRow({ tx }) {
 }
 
 function TransactionCard({ tx }) {
-  const meta = TYPE_META[tx.type] || { label: tx.type };
+  const meta = getTxMeta(tx);
   const credit = isCredit(tx.type);
   return (
     <Box
@@ -234,9 +241,65 @@ export default function WalletPage() {
     [loadBalance, loadTransactions]
   );
 
+  const syncWithdrawalState = useCallback(
+    async (trackId) => {
+      try {
+        const res = await getMyWithdrawals();
+        const list = res.data?.withdrawals || [];
+        const targetId = trackId || null;
+
+        if (targetId) {
+          const current = list.find((w) => w.id === targetId);
+          if (current?.status === "processed") {
+            setPendingWithdrawal(null);
+            await loadBalance();
+            await loadTransactions({ silent: true });
+            const receipt = current.transactionReceipt;
+            setSuccess(
+              receipt
+                ? `KSh ${parseFloat(current.amount).toLocaleString("en-KE")} sent to M-Pesa. Receipt: ${receipt}`
+                : `KSh ${parseFloat(current.amount).toLocaleString("en-KE")} has been sent to your M-Pesa.`
+            );
+            return "processed";
+          }
+          if (current?.status === "failed" || current?.status === "rejected") {
+            setPendingWithdrawal(null);
+            await loadBalance();
+            await loadTransactions({ silent: true });
+            setError(
+              current.mpesaResultDescription ||
+                "Withdrawal could not be confirmed — funds have been returned to your wallet."
+            );
+            return "failed";
+          }
+          if (current?.status === "pending" || current?.status === "processing") {
+            setPendingWithdrawal({ id: current.id, amount: parseFloat(current.amount) });
+            return "active";
+          }
+        }
+
+        const active = list.find((w) => w.status === "pending" || w.status === "processing");
+        if (active) {
+          setPendingWithdrawal({ id: active.id, amount: parseFloat(active.amount) });
+          return "active";
+        }
+
+        setPendingWithdrawal(null);
+        return "idle";
+      } catch {
+        return "error";
+      }
+    },
+    [loadBalance, loadTransactions]
+  );
+
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    syncWithdrawalState();
+  }, [syncWithdrawalState]);
 
   const refreshSilently = useCallback(async () => {
     try {
@@ -299,52 +362,26 @@ export default function WalletPage() {
   useEffect(() => {
     if (!pendingWithdrawal?.id) return undefined;
 
-    const poll = async () => {
-      try {
-        const res = await getMyWithdrawals();
-        const list = res.data?.withdrawals || [];
-        const current = list.find((w) => w.id === pendingWithdrawal.id);
-        if (!current) return;
-
-        if (current.status === "processed") {
-          setPendingWithdrawal(null);
-          await loadBalance();
-          await loadTransactions({ silent: true });
-          pulseBalance();
-          const receipt = current.transactionReceipt;
-          setSuccess(
-            receipt
-              ? `KSh ${parseFloat(current.amount).toLocaleString("en-KE")} sent to M-Pesa. Receipt: ${receipt}`
-              : `KSh ${parseFloat(current.amount).toLocaleString("en-KE")} has been sent to your M-Pesa.`
-          );
-        } else if (current.status === "failed" || current.status === "rejected") {
-          setPendingWithdrawal(null);
-          await loadBalance();
-          await loadTransactions({ silent: true });
-          setError(
-            current.mpesaResultDescription ||
-              "Withdrawal failed — funds have been returned to your wallet."
-          );
-        }
-      } catch {
-        /* keep polling until timeout */
-      }
-    };
+    const trackId = pendingWithdrawal.id;
+    const poll = () => syncWithdrawalState(trackId);
 
     poll();
     const interval = setInterval(poll, POLL_INTERVAL_MS);
-    withdrawPollTimeoutRef.current = setTimeout(() => {
-      setPendingWithdrawal(null);
-      setError(
-        "Withdrawal confirmation timed out. Tap refresh — funds may still be processing or returned to your wallet."
-      );
+    withdrawPollTimeoutRef.current = setTimeout(async () => {
+      const outcome = await syncWithdrawalState(trackId);
+      if (outcome === "active") {
+        setPendingWithdrawal(null);
+        setError(
+          "M-Pesa did not confirm this withdrawal in time. Your funds should return to your wallet shortly — tap refresh."
+        );
+      }
     }, POLL_TIMEOUT_MS);
 
     return () => {
       clearInterval(interval);
       if (withdrawPollTimeoutRef.current) clearTimeout(withdrawPollTimeoutRef.current);
     };
-  }, [pendingWithdrawal?.id, loadBalance, loadTransactions, pulseBalance]);
+  }, [pendingWithdrawal?.id, syncWithdrawalState]);
 
   const handleDeposit = async (e) => {
     e.preventDefault();
