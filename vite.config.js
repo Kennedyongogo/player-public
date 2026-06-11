@@ -17,7 +17,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
       },
-      includeAssets: ["favicon.ico"],
+      includeAssets: ["favicon.ico", "icon-192.png", "icon-512.png"],
       manifest: {
         name: "ChapaQuiz",
         short_name: "ChapaQuiz",
@@ -30,15 +30,21 @@ export default defineConfig({
         background_color: "#050508",
         icons: [
           {
-            src: "favicon.ico",
-            sizes: "48x48 72x72 96x96 128x128 256x256",
-            type: "image/x-icon",
+            src: "icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
             purpose: "any",
           },
           {
-            src: "favicon.ico",
+            src: "icon-512.png",
             sizes: "512x512",
-            type: "image/x-icon",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
             purpose: "maskable",
           },
         ],

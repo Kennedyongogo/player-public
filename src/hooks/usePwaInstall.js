@@ -16,6 +16,23 @@ function isIos() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
+function isAndroid() {
+  if (typeof navigator === "undefined") return false;
+  return /android/i.test(navigator.userAgent);
+}
+
+function isMobile() {
+  return isIos() || isAndroid();
+}
+
+/** PWA install over the network requires HTTPS (localhost is the only HTTP exception). */
+function canInstallOnThisOrigin() {
+  if (typeof window === "undefined") return false;
+  if (window.isSecureContext) return true;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
+}
+
 function isDismissed() {
   try {
     const raw = localStorage.getItem(DISMISS_KEY);
@@ -34,6 +51,9 @@ export function usePwaInstall() {
   const [installed, setInstalled] = useState(isStandalone);
   const [dismissed, setDismissed] = useState(isDismissed);
   const [ios] = useState(isIos);
+  const [android] = useState(isAndroid);
+  const [mobile] = useState(isMobile);
+  const [installableOrigin] = useState(canInstallOnThisOrigin);
 
   useEffect(() => {
     const onBeforeInstall = (e) => {
@@ -82,14 +102,29 @@ export function usePwaInstall() {
 
   const canNativeInstall = Boolean(deferredPrompt);
   const showIosHint = ios && !installed && !dismissed;
-  const showAndroidInstall = canNativeInstall && !installed && !dismissed;
-  const visible = showIosHint || showAndroidInstall;
+  const showAndroidNative = android && canNativeInstall && !installed && !dismissed;
+  const showAndroidManual = android && !canNativeInstall && !installed && !dismissed;
+  const showDesktopInstall = !mobile && canNativeInstall && !installed && !dismissed;
+  const showDesktopManual = !mobile && !canNativeInstall && installableOrigin && !installed && !dismissed;
+  const showInsecureWarning = mobile && !installableOrigin && !installed && !dismissed;
+
+  const visible =
+    showIosHint ||
+    showAndroidNative ||
+    showAndroidManual ||
+    showDesktopInstall ||
+    showDesktopManual ||
+    showInsecureWarning;
 
   return {
     visible,
     showIosHint,
-    showAndroidInstall,
-    installed,
+    showAndroidNative,
+    showAndroidManual,
+    showDesktopInstall,
+    showDesktopManual,
+    showInsecureWarning,
+    installableOrigin,
     dismiss,
     promptInstall,
   };
