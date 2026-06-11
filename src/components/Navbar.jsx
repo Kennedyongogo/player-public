@@ -150,7 +150,7 @@ export default function Navbar({ user, onLogout }) {
 
           <Box
             component={RouterLink}
-            to="/wallet"
+            to="/play"
             sx={{
               display: "flex",
               alignItems: "center",

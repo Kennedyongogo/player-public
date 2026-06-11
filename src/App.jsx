@@ -26,7 +26,7 @@ function LoginRoute() {
   if (isAuthenticated) {
     const pending = peekPendingInvite();
     if (pending) return <Navigate to={`/join/${pending}`} replace />;
-    return <Navigate to="/wallet" replace />;
+    return <Navigate to="/play" replace />;
   }
   return <AuthPage />;
 }
@@ -34,7 +34,7 @@ function LoginRoute() {
 function RootRedirect() {
   const { isAuthenticated, booting } = useAuth();
   if (booting) return <BootScreen />;
-  return <Navigate to={isAuthenticated ? "/wallet" : "/login"} replace />;
+  return <Navigate to={isAuthenticated ? "/play" : "/login"} replace />;
 }
 
 export default function App() {

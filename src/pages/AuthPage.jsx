@@ -26,7 +26,7 @@ import {
   Share,
 } from "@mui/icons-material";
 import Swal from "sweetalert2";
-import { login, register } from "../api";
+import { login, register, getMe } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { peekPendingInvite } from "../utils/invite";
 
@@ -229,6 +229,21 @@ export default function AuthPage() {
     setConfirmPassword("");
   };
 
+  const navigateAfterAuth = async () => {
+    const pending = peekPendingInvite();
+    if (pending) {
+      navigate(`/join/${pending}`, { replace: true });
+      return;
+    }
+    try {
+      const meRes = await getMe();
+      const matchId = meRes.data?.activeMatch?.matchId;
+      navigate(matchId ? `/play/${matchId}` : "/play", { replace: true });
+    } catch {
+      navigate("/play", { replace: true });
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -253,8 +268,7 @@ export default function AuthPage() {
         ...swalTheme,
       });
 
-      const pending = peekPendingInvite();
-      navigate(pending ? `/join/${pending}` : "/wallet", { replace: true });
+      await navigateAfterAuth();
     } catch (err) {
       setError(err.message || "Login failed. Check your credentials.");
     } finally {
@@ -282,8 +296,7 @@ export default function AuthPage() {
     try {
       const res = await register({ phone: normalized, nickname: nickname.trim(), password });
       loginUser({ token: res.data.token, user: res.data.user });
-      const pending = peekPendingInvite();
-      navigate(pending ? `/join/${pending}` : "/wallet", { replace: true });
+      await navigateAfterAuth();
     } catch (err) {
       setError(err.message || "Registration failed. Try a different phone number.");
     } finally {
