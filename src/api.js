@@ -115,17 +115,35 @@ export function getStoredUser() {
   }
 }
 
-export async function joinPublicMatch(entryFee) {
+export async function getMatchPlayerLimits() {
+  return request("/api/matches/limits");
+}
+
+export async function getOpenPublicMatches() {
+  return request("/api/matches/public/open");
+}
+
+export async function joinPublicMatch(entryFee, requiredPlayers) {
   return request("/api/matches/public/join", {
     method: "POST",
-    body: JSON.stringify({ entryFee: String(entryFee) }),
+    body: JSON.stringify({
+      entryFee: String(entryFee),
+      requiredPlayers: Number(requiredPlayers),
+    }),
   });
 }
 
-export async function createPrivateMatch(entryFee) {
+export async function joinPublicMatchById(matchId) {
+  return request(`/api/matches/public/${matchId}/join`, { method: "POST" });
+}
+
+export async function createPrivateMatch(entryFee, requiredPlayers) {
   return request("/api/matches/private/create", {
     method: "POST",
-    body: JSON.stringify({ entryFee: String(entryFee) }),
+    body: JSON.stringify({
+      entryFee: String(entryFee),
+      requiredPlayers: Number(requiredPlayers),
+    }),
   });
 }
 
