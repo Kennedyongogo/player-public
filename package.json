@@ -33,7 +33,6 @@
     "react-leaflet": "^4.2.1",
     "react-router-dom": "^6.23.0",
     "sweetalert2": "^11.22.5",
-    "three": "^0.184.0",
     "vite-plugin-pwa": "^1.0.1",
     "vitest": "^3.2.4"
   },

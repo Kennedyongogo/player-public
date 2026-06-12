@@ -29,7 +29,7 @@ import Swal from "sweetalert2";
 import { login, register, getMe } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { peekPendingInvite } from "../utils/invite";
-import BallpitBackground from "../components/BallpitBackground";
+import PrismaVideoBackground from "../components/PrismaVideoBackground";
 
 const swalTheme = {
   confirmButtonColor: "#F5C518",
@@ -57,8 +57,6 @@ const TICKER_ITEMS = [
   "📲 New challenge from WhatsApp",
 ];
 
-const FLOATING_LABELS = ["A", "B", "C", "D", "?", "✓"];
-
 function normalizePhone(input) {
   const stripped = String(input || "").trim().replace(/[\s-]+/g, "");
   if (!stripped) return "";
@@ -72,61 +70,7 @@ function normalizePhone(input) {
 function AuthBackground() {
   return (
     <Box sx={{ position: "absolute", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
-      <BallpitBackground />
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 1,
-          pointerEvents: "none",
-          background: `
-            radial-gradient(ellipse 80% 60% at 20% 10%, rgba(124,58,237,0.08) 0%, transparent 55%),
-            radial-gradient(ellipse 70% 50% at 85% 80%, rgba(245,197,24,0.07) 0%, transparent 50%),
-            linear-gradient(180deg, rgba(5,5,8,0.05) 0%, rgba(5,5,8,0.15) 100%)
-          `,
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 2,
-          opacity: 0.2,
-          backgroundImage: `
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)
-          `,
-          backgroundSize: { xs: "32px 32px", md: "48px 48px" },
-          maskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 10%, transparent 75%)",
-        }}
-      />
-      {FLOATING_LABELS.map((label, i) => (
-        <Box
-          key={label}
-          sx={{
-            position: "absolute",
-            zIndex: 3,
-            width: { xs: 36, sm: 44, md: 52 },
-            height: { xs: 36, sm: 44, md: 52 },
-            borderRadius: "14px",
-            display: { xs: i > 3 ? "none" : "flex", sm: "flex" },
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 800,
-            fontSize: { xs: "0.85rem", md: "1rem" },
-            color: "rgba(255,255,255,0.15)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            bgcolor: "rgba(255,255,255,0.02)",
-            backdropFilter: "blur(4px)",
-            top: `${12 + (i * 14) % 55}%`,
-            left: `${5 + (i * 17) % 85}%`,
-            animation: `${i % 2 === 0 ? "float" : "float-reverse"} ${4 + i * 0.7}s ease-in-out infinite`,
-            animationDelay: `${i * 0.4}s`,
-          }}
-        >
-          {label}
-        </Box>
-      ))}
+      <PrismaVideoBackground />
     </Box>
   );
 }
@@ -771,9 +715,9 @@ const pageSx = {
 };
 
 const cardSx = {
-  bgcolor: "rgba(12,12,20,0.9)",
-  backdropFilter: "blur(14px)",
-  WebkitBackdropFilter: "blur(14px)",
+  bgcolor: "rgba(12,12,20,0.94)",
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
   border: "1px solid rgba(255,255,255,0.07)",
   borderRadius: { xs: "20px", sm: "24px" },
   p: { xs: 2.5, sm: 3, md: 2.5, lg: 3 },
