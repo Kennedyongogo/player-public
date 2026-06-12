@@ -29,6 +29,7 @@ import Swal from "sweetalert2";
 import { login, register, getMe } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { peekPendingInvite } from "../utils/invite";
+import BallpitBackground from "../components/BallpitBackground";
 
 const swalTheme = {
   confirmButtonColor: "#F5C518",
@@ -70,25 +71,27 @@ function normalizePhone(input) {
 
 function AuthBackground() {
   return (
-    <Box sx={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+    <Box sx={{ position: "absolute", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
+      <BallpitBackground />
       <Box
         sx={{
           position: "absolute",
           inset: 0,
+          zIndex: 1,
+          pointerEvents: "none",
           background: `
-            radial-gradient(ellipse 80% 60% at 20% 10%, rgba(124,58,237,0.18) 0%, transparent 55%),
-            radial-gradient(ellipse 70% 50% at 85% 80%, rgba(245,197,24,0.12) 0%, transparent 50%),
-            radial-gradient(ellipse 50% 40% at 60% 40%, rgba(16,240,160,0.08) 0%, transparent 45%),
-            linear-gradient(180deg, #050508 0%, #0a0a12 50%, #050508 100%)
+            radial-gradient(ellipse 80% 60% at 20% 10%, rgba(124,58,237,0.08) 0%, transparent 55%),
+            radial-gradient(ellipse 70% 50% at 85% 80%, rgba(245,197,24,0.07) 0%, transparent 50%),
+            linear-gradient(180deg, rgba(5,5,8,0.05) 0%, rgba(5,5,8,0.15) 100%)
           `,
-          backgroundSize: "100% 100%, 100% 100%, 100% 100%, 100% 100%",
         }}
       />
       <Box
         sx={{
           position: "absolute",
           inset: 0,
-          opacity: 0.35,
+          zIndex: 2,
+          opacity: 0.2,
           backgroundImage: `
             linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)
@@ -102,6 +105,7 @@ function AuthBackground() {
           key={label}
           sx={{
             position: "absolute",
+            zIndex: 3,
             width: { xs: 36, sm: 44, md: 52 },
             height: { xs: 36, sm: 44, md: 52 },
             borderRadius: "14px",
@@ -767,9 +771,9 @@ const pageSx = {
 };
 
 const cardSx = {
-  bgcolor: "rgba(12,12,20,0.75)",
-  backdropFilter: "blur(24px)",
-  WebkitBackdropFilter: "blur(24px)",
+  bgcolor: "rgba(12,12,20,0.9)",
+  backdropFilter: "blur(14px)",
+  WebkitBackdropFilter: "blur(14px)",
   border: "1px solid rgba(255,255,255,0.07)",
   borderRadius: { xs: "20px", sm: "24px" },
   p: { xs: 2.5, sm: 3, md: 2.5, lg: 3 },
