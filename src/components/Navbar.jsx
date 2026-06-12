@@ -41,7 +41,7 @@ export default function Navbar({ user, onLogout }) {
   const handleLogout = () => {
     setDrawerOpen(false);
     onLogout();
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   };
 
   const navLink = (item) => {

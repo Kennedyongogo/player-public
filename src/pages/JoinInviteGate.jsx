@@ -18,7 +18,7 @@ export default function JoinInviteGate() {
 
   if (!isAuthenticated) {
     savePendingInvite(inviteCode);
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <JoinInvitePage />;

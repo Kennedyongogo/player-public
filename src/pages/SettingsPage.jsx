@@ -181,7 +181,7 @@ export default function SettingsPage() {
         ...swalTheme,
       });
       logoutUser();
-      navigate("/login", { replace: true });
+      navigate("/", { replace: true });
     } catch (err) {
       setPasswordError(err.message || "Failed to change password");
     } finally {

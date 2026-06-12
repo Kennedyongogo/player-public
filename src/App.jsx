@@ -31,10 +31,11 @@ function LoginRoute() {
   return <AuthPage />;
 }
 
-function RootRedirect() {
+function CatchAllRoute() {
   const { isAuthenticated, booting } = useAuth();
   if (booting) return <BootScreen />;
-  return <Navigate to={isAuthenticated ? "/play" : "/login"} replace />;
+  if (isAuthenticated) return <Navigate to="/play" replace />;
+  return <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -45,8 +46,8 @@ export default function App() {
         <BrowserRouter>
           <InstallPrompt />
           <Routes>
-            <Route path="/" element={<RootRedirect />} />
-            <Route path="/login" element={<LoginRoute />} />
+            <Route path="/" element={<LoginRoute />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/join/:inviteCode" element={<JoinInviteGate />} />
             <Route element={<AppLayout />}>
               <Route path="/wallet" element={<WalletPage />} />
@@ -54,7 +55,7 @@ export default function App() {
               <Route path="/play/:matchId" element={<MatchPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
-            <Route path="*" element={<RootRedirect />} />
+            <Route path="*" element={<CatchAllRoute />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
